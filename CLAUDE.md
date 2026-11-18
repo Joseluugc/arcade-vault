@@ -6,14 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Arcade Vault: plataforma para jugar online y competir por la mayor cantidad de puntos. El README indica que el proyecto sigue Spec Driven Design mediante los skills `/spec` y `/spec-impl`, instalados con `npx skills@latest add Klerith/fernando-skills`.
 
-## Comandos
-
-- `npm run dev`: servidor de desarrollo (http://localhost:3000)
-- `npm run build` / `npm run start`: compilar para producción / servir la compilación
-- `npm run lint`: ESLint (configuración flat en `eslint.config.mjs`)
-
-No hay ningún framework de pruebas configurado.
-
 ## Stack y advertencias
 
 - Next.js 16.4.6, React 19.3, Tailwind 4 (`@tailwindcss/turbopack`), TypeScript. App Router en `app/`; el alias `@/*` apunta a la raíz del repositorio.
@@ -27,3 +19,6 @@ No hay ningún framework de pruebas configurado.
 ## Idioma
 
 La documentación y las respuestas deben estar en español. El código (nombres de variables, funciones, archivos) puede estar en inglés.
+
+## Skills
+Usa siempre el /frontend-design skills para hacer interfaces de usuarios.
