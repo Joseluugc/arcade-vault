@@ -14,7 +14,7 @@ Arcade Vault: plataforma para jugar online y competir por la mayor cantidad de p
 
 ## Referencia de diseño
 
-`resources/templates/` contiene el prototipo de UI que se debe portar a la app de Next.js: `Arcade Vault.html` más pantallas `.jsx` (`auth`, `biblioteca`, `detalle`, `reproductor`, `salon`, `nav`, `app`), datos de prueba en `data.jsx` y `styles.css`. Trátalo como la especificación visual y de comportamiento, no como código para publicar tal cual. Las pantallas sugieren el dominio: autenticación, biblioteca de juegos, detalle de juego, reproductor y salón de puntuaciones.
+`references/templates/` contiene el prototipo de UI que se debe portar a la app de Next.js: `Arcade Vault.html` más pantallas `.jsx` (`auth`, `biblioteca`, `detalle`, `reproductor`, `salon`, `nav`, `app`), datos de prueba en `data.jsx` y `styles.css`. Trátalo como la especificación visual y de comportamiento, no como código para publicar tal cual. Las pantallas sugieren el dominio: autenticación, biblioteca de juegos, detalle de juego, reproductor y salón de puntuaciones.
 
 ## Idioma
 
