@@ -1,6 +1,6 @@
 # SPEC 01 — Motor de juegos y reproductor
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** —
 > **Fecha:** 2026-11-18
 > **Objetivo:** Crear un motor Canvas 2D común y la ruta `/jugar/[id]` que ejecuta cualquier juego registrado con HUD, pausa y pantalla de fin de juego.
