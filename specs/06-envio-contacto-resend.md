@@ -1,6 +1,6 @@
 # SPEC 06 — Envío del formulario de contacto con Resend
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** SPEC 05
 > **Fecha:** 2026-11-19
 > **Objetivo:** Hacer que el formulario de contacto de `/acerca` envíe un correo real al equipo mediante Resend.

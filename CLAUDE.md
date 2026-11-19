@@ -11,12 +11,13 @@ Arcade Vault: plataforma para jugar online y competir por la mayor cantidad de p
 - Next.js 16.4.6, React 19.3, Tailwind 4 (`@tailwindcss/turbopack`), TypeScript. App Router en `app/`; el alias `@/*` apunta a la raíz del repositorio.
 - `AGENTS.md` advierte que esta versión de Next.js tiene cambios incompatibles respecto a lo conocido previamente. Antes de escribir código de Next.js, lee la guía relevante en `node_modules/next/dist/docs/`.
 - Comandos: `npm run dev`, `npm run build`, `npm run lint`. No hay tests; la verificación mínima es `npx tsc --noEmit` + `npm run lint` + `npm run build`.
+- Variables de entorno en `.env.local` (ignorado por git; nunca escribas sus valores en el repositorio): `RESEND_API_KEY`, `CONTACT_TO_EMAIL` (destinatario; sin dominio verificado en Resend debe ser el correo de la cuenta) y `CONTACT_FROM_EMAIL` (p. ej. `Arcade Vault <onboarding@resend.dev>`). Sin ellas, el formulario de contacto muestra un error y el servidor registra cuál falta.
 
 ## Arquitectura
 
 - `app/page.tsx`: home (SPEC 05). Hero, "¿Por qué?", 6 juegos jugables, estadísticas, actividad (`id="salon"`, datos de prueba de `games/activity.ts`), precios/FAQ y CTA final. Las secciones usan `app/Reveal.tsx` (aparición al hacer scroll) y el arte SVG de `app/PixelArt.tsx`.
 - `app/biblioteca/`: Biblioteca (selección de juegos). `page.tsx` es un componente servidor que calcula los juegos jugables según `GAME_REGISTRY` y los pasa a `GameLibrary.tsx` (cliente: búsqueda, filtro por categoría, tarjetas con portada). Los juegos sin registrar aparecen como "PRÓXIMAMENTE".
-- `app/acerca/`: página Acerca de con misión y formulario de contacto solo visual (`ContactForm.tsx`, no envía nada).
+- `app/acerca/`: página Acerca de con misión y formulario de contacto (`ContactForm.tsx`). Envía con la Server Action `sendContactMessage` de `actions.ts` (SPEC 06): validación en servidor, honeypot `website` y correo al equipo vía Resend con `replyTo` del usuario.
 - `app/Nav.tsx`: barra global con Inicio, Biblioteca, Salón de la Fama (ancla `/#salon` hasta que exista `/salon`) y Acerca de. Créditos fijos (`GUEST_CREDITS`) y "Iniciar Sesión" hacia `/auth`, que aún no existe.
 - `app/jugar/[id]/`: reproductor (`GamePlayer.tsx`), con HUD, pausa (P) y fin de partida. Devuelve 404 si el id no está en el registro.
 - `app/globals.css`: tema completo portado de `references/templates/styles.css` y de `references/templates/home-about/styles.css` (tokens de color, `.btn`, `.card`, portadas CSS `.cover-*`, nav, etc.). Reutiliza estas clases antes de crear estilos nuevos.
@@ -27,8 +28,8 @@ Arcade Vault: plataforma para jugar online y competir por la mayor cantidad de p
 
 ## Estado
 
-- Hecho: motor y reproductor (SPEC 01), juegos de rejilla (SPEC 02), juegos de disparo (SPEC 03), pantalla Biblioteca, home, Acerca de y barra de navegación (SPEC 05).
-- Pendiente: SPEC 04 (Ranaria, Duelo Pixel), detalle de juego, autenticación (`/auth`), página del salón de la fama (`/salon`), envío real del formulario de contacto y persistencia de puntuaciones (la Biblioteca muestra "—" en mejor puntuación y la actividad de la home usa datos de prueba).
+- Hecho: motor y reproductor (SPEC 01), juegos de rejilla (SPEC 02), juegos de disparo (SPEC 03), pantalla Biblioteca, home, Acerca de y barra de navegación (SPEC 05), envío del formulario de contacto con Resend (SPEC 06).
+- Pendiente: SPEC 04 (Ranaria, Duelo Pixel), detalle de juego, autenticación (`/auth`), página del salón de la fama (`/salon`), y persistencia de puntuaciones (la Biblioteca muestra "—" en mejor puntuación y la actividad de la home usa datos de prueba).
 - Las specs viven en `specs/NN-nombre.md`. `.trees/` contiene git worktrees creados con el skill `/worktree`.
 
 ## Referencia de diseño
