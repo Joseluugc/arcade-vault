@@ -91,7 +91,7 @@ export function GameLibrary({ games, playableIds }: { games: GameMeta[]; playabl
   }, [games, query, category]);
 
   return (
-    <main className="fade-in">
+    <div className="fade-in">
       <section className="av-hero">
         <h1 className="flicker">ARCADE VAULT</h1>
         <div className="sub">
@@ -136,6 +136,6 @@ export function GameLibrary({ games, playableIds }: { games: GameMeta[]; playabl
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }
