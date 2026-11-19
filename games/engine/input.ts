@@ -1,4 +1,4 @@
-import type { InputState } from "./types";
+  import type { InputState } from "./types";
 
 const BLOCKED_KEYS = new Set([
   "ArrowUp",
