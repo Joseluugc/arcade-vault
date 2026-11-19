@@ -1,6 +1,6 @@
 # SPEC 02 — Juegos de rejilla: Serpentina, Caída y Glotón
 
-> **Estado:** Borrador
+> **Estado:** Implementado
 > **Depende de:** SPEC 01
 > **Fecha:** 2026-11-18
 > **Objetivo:** Implementar el MVP jugable de Serpentina, Caída y Glotón sobre el motor de la SPEC 01, con niveles, puntuación y fin de juego.

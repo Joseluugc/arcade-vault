@@ -1,6 +1,6 @@
 # SPEC 03 — Juegos de acción: Bloque Buster, Invasores y Rocas
 
-> **Estado:** Borrador
+> **Estado:** Implementado
 > **Depende de:** SPEC 01
 > **Fecha:** 2026-11-18
 > **Objetivo:** Implementar el MVP jugable de Bloque Buster, Invasores y Rocas sobre el motor de la SPEC 01, con 3 vidas, niveles y fin de juego.

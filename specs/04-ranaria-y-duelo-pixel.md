@@ -1,6 +1,6 @@
 # SPEC 04 — Ranaria y Duelo Pixel
 
-> **Estado:** Borrador
+> **Estado:** Aprobado
 > **Depende de:** SPEC 01
 > **Fecha:** 2026-11-18
 > **Objetivo:** Implementar el MVP jugable de Ranaria y Duelo Pixel (contra la CPU) sobre el motor de la SPEC 01, con niveles, puntuación y fin de juego.
