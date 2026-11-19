@@ -377,6 +377,17 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink);
 }
 .card .desc { font-size: 12px; color: var(--ink-dim); min-height: 36px; }
+.card .title, .card .desc { margin: 0; }
+.card:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+.card.locked { cursor: default; opacity: 0.55; }
+.card.locked:hover { transform: none; border-color: var(--line); box-shadow: none; }
+.card.locked:hover::before { opacity: 0; }
+.av-empty { grid-column: 1 / -1; text-align: center; padding: 80px 16px; color: var(--ink-faint); }
+.av-empty .pixel { font-size: 14px; color: var(--magenta); margin-bottom: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  .card, .card:hover { transition: none; transform: none; }
+  .flicker, .av-hero .sub .blink { animation: none; }
+}
 
 .card .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
 .score-badge {
