@@ -1,6 +1,6 @@
 # SPEC 05 — Home y Acerca de
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** SPEC 01
 > **Fecha:** 2026-11-19
 > **Objetivo:** Portar la home y la página Acerca de del prototipo `references/templates/home-about/` a la app, moviendo la Biblioteca a `/biblioteca`.
