@@ -63,7 +63,7 @@ export const GAMES: GameMeta[] = [
     id: "rocas",
     title: "ROCAS",
     short: "Pulveriza asteroides en gravedad cero.",
-    long: "Tu nave triangular flota en vacío absoluto. Dispara y rota para dividir rocas en fragmentos cada vez más pequeños. Cuidado con los OVNIs en el horizonte.",
+    long: "Tu nave triangular flota en vacío absoluto. Dispara y rota para dividir rocas en fragmentos cada vez más pequeños. Atrapa el power-up 3x para disparar en abanico triple.",
     cat: "SHOOTER",
     cover: "cover-rocas",
     color: "yellow",

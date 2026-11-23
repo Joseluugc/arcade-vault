@@ -32,7 +32,7 @@ Arcade Vault: plataforma para jugar online y competir por la mayor cantidad de p
 
 ## Estado
 
-- Hecho: motor y reproductor (SPEC 01), juegos de rejilla (SPEC 02), juegos de disparo (SPEC 03), pantalla Biblioteca, home, Acerca de y barra de navegación (SPEC 05), envío del formulario de contacto con Resend (SPEC 06).
+- Hecho: motor y reproductor (SPEC 01), juegos de rejilla (SPEC 02), juegos de disparo (SPEC 03), pantalla Biblioteca, home, Acerca de y barra de navegación (SPEC 05), envío del formulario de contacto con Resend (SPEC 06), Rocas portado del asteroides de referencia con disparo triple y partículas (SPEC 08).
 - Pendiente: SPEC 04 (Ranaria, Duelo Pixel), detalle de juego, autenticación (`/auth`), página del salón de la fama (`/salon`), y persistencia de puntuaciones (la Biblioteca muestra "—" en mejor puntuación y la actividad de la home usa datos de prueba).
 - Las specs viven en `specs/NN-nombre.md`. `.trees/` contiene git worktrees creados con el skill `/worktree`.
 

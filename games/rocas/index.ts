@@ -1,257 +1,478 @@
 import type { GameDefinition } from "../engine/types";
-import { COLORS } from "../engine/palette";
-
-const ROTATE_SPEED = 4; // rad/s
-const THRUST = 320; // px/s²
-const FRICTION = 0.5; // fracción de velocidad perdida por segundo (rozamiento leve)
-const MAX_SPEED = 300; // px/s
-const SHIP_R = 10;
-const SHOT_SPEED = 480;
-const SHOT_TTL_MS = 1000;
-const MAX_SHOTS = 4;
-const INVULN_MS = 2000;
-const SAFE_DISTANCE = 150;
-const SHAPE_POINTS = 11;
-
-type RockSize = "large" | "medium" | "small";
-
-const ROCK: Record<RockSize, { r: number; minSpeed: number; maxSpeed: number; points: number; next: RockSize | null }> = {
-  large: { r: 40, minSpeed: 30, maxSpeed: 70, points: 20, next: "medium" },
-  medium: { r: 22, minSpeed: 60, maxSpeed: 110, points: 50, next: "small" },
-  small: { r: 12, minSpeed: 90, maxSpeed: 150, points: 100, next: null },
-};
-
-interface Rock { x: number; y: number; vx: number; vy: number; size: RockSize; shape: number[] }
-interface Shot { x: number; y: number; vx: number; vy: number; ttlMs: number }
-
+import { COLORS, drawText } from "../engine/palette";
+// Port de references/started-games/02-asteroids/game.js (800×600) escalado ×0,8 a 640×480.
+type RockSize = 1 | 2 | 3; // 1 pequeña, 2 mediana, 3 grande
+const ROCK_RADIUS: Record<RockSize, number> = { 1: 13, 2: 24, 3: 40 };
+const ROCK_SPEED: Record<RockSize, number> = { 1: 68, 2: 44, 3: 26 };
+const ROCK_SPEED_JITTER = 12;
+const ROCK_POINTS: Record<RockSize, number> = { 1: 100, 2: 50, 3: 20 };
+const SHIP_RADIUS = 10;
+const SHIP_HIT_FACTOR = 0.82; // radio efectivo de la roca contra la nave, como en la referencia
+const NOSE = 17;
+const ROTATE_SPEED = 3.5; // rad/s
+const THRUST = 208; // px/s²
+const DRAG = 0.987; // por paso de simulación
+const BULLET_SPEED = 416;
+const BULLET_TTL = 1.1; // s
+const BULLET_RADIUS = 1.6;
+const SHOOT_COOLDOWN = 0.2; // s
+const SAFE_DISTANCE = 104;
+const INVINCIBLE_TIME = 3; // s
+const DEAD_TIME = 2; // s hasta reaparecer
+const ROCK_PARTICLES_PER_SIZE = 5;
+const SHIP_PARTICLES = 14;
+const POWERUP_DROP_CHANCE = 0.15;
+const POWERUP_GUARANTEED_KILLS = 5; // seguro en la 5.ª roca destruida del nivel
+const POWERUP_TTL = 12; // s en pantalla
+const POWERUP_BLINK = 2; // s finales parpadeando
+const POWERUP_DURATION = 5; // s de disparo triple
+const POWERUP_RADIUS = 10;
+const TRIPLE_SPREAD = 0.18; // rad
+interface Rock {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: RockSize;
+  rot: number;
+  rotSpeed: number; // rotación propia, rad y rad/s
+  verts: [number, number][]; // polígono irregular de 8 a 13 vértices
+}
+interface Bullet {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  ttl: number;
+}
+interface PowerUp {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  ttl: number;
+}
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  ttl: number;
+  color: string;
+}
 interface RocksState {
-  ship: { x: number; y: number; vx: number; vy: number; angle: number; invulnMs: number };
+  ship: {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    angle: number;
+    invincible: number; // s restantes de invulnerabilidad
+    cooldown: number; // s hasta poder disparar
+    tripleShot: number; // s restantes de disparo triple
+    thrusting: boolean;
+  };
   rocks: Rock[];
-  shots: Shot[];
+  bullets: Bullet[];
+  powerUps: PowerUp[];
+  particles: Particle[];
+  phase: "playing" | "dead" | "over";
+  deadTimer: number; // s hasta reaparecer
+  powerUpSpawned: boolean; // ya salió el power-up de este nivel
+  killsSinceSpawn: number;
   lives: number;
   score: number;
   level: number;
 }
-
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
-
+const randInt = (min: number, max: number) => Math.floor(rand(min, max + 1));
 function makeRock(x: number, y: number, size: RockSize): Rock {
-  const { minSpeed, maxSpeed } = ROCK[size];
   const dir = rand(0, Math.PI * 2);
-  const speed = rand(minSpeed, maxSpeed);
+  const speed = ROCK_SPEED[size] + rand(-ROCK_SPEED_JITTER, ROCK_SPEED_JITTER);
+  const n = randInt(8, 13);
+  const verts: [number, number][] = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const r = ROCK_RADIUS[size] * rand(0.6, 1);
+    verts.push([Math.cos(a) * r, Math.sin(a) * r]);
+  }
   return {
     x,
     y,
     vx: Math.cos(dir) * speed,
     vy: Math.sin(dir) * speed,
     size,
-    // Radio relativo de cada vértice: forma irregular propia de cada roca
-    shape: Array.from({ length: SHAPE_POINTS }, () => rand(0.72, 1.12)),
+    rot: rand(0, Math.PI * 2),
+    rotSpeed: rand(-1.2, 1.2),
+    verts,
   };
 }
-
 export const rocasGame: GameDefinition = {
   id: "rocas",
   create(ctx) {
     const { input, width: W, height: H } = ctx;
     const s: RocksState = {
-      ship: { x: W / 2, y: H / 2, vx: 0, vy: 0, angle: -Math.PI / 2, invulnMs: 0 },
+      ship: {
+        x: W / 2,
+        y: H / 2,
+        vx: 0,
+        vy: 0,
+        angle: -Math.PI / 2,
+        invincible: INVINCIBLE_TIME,
+        cooldown: 0,
+        tripleShot: 0,
+        thrusting: false,
+      },
       rocks: [],
-      shots: [],
+      bullets: [],
+      powerUps: [],
+      particles: [],
+      phase: "playing",
+      deadTimer: 0,
+      powerUpSpawned: false,
+      killsSinceSpawn: 0,
       lives: 3,
       score: 0,
       level: 1,
     };
-    let thrusting = false;
-    let over = false;
-
-    const emitHud = () => ctx.onHud({ score: s.score, lives: s.lives, level: s.level });
-
+    const emitHud = () =>
+      ctx.onHud({ score: s.score, lives: s.lives, level: s.level });
     /** Envoltura toroidal: lo que sale por un borde entra por el opuesto. */
-    const wrap = (o: { x: number; y: number }) => {
-      o.x = ((o.x % W) + W) % W;
-      o.y = ((o.y % H) + H) % H;
+    const move = (
+      o: { x: number; y: number; vx: number; vy: number },
+      dt: number,
+    ) => {
+      o.x = (((o.x + o.vx * dt) % W) + W) % W;
+      o.y = (((o.y + o.vy * dt) % H) + H) % H;
     };
-
-    const startLevel = () => {
-      s.rocks = [];
-      s.shots = [];
-      for (let i = 0; i < 3 + s.level; i++) {
+    const spawnRocks = (count: number) => {
+      for (let i = 0; i < count; i++) {
         let x: number;
         let y: number;
         do {
           x = rand(0, W);
           y = rand(0, H);
-        } while (Math.hypot(x - s.ship.x, y - s.ship.y) < SAFE_DISTANCE);
-        s.rocks.push(makeRock(x, y, "large"));
+        } while (Math.hypot(x - W / 2, y - H / 2) < SAFE_DISTANCE);
+        s.rocks.push(makeRock(x, y, 3));
       }
     };
-
-    const destroyRock = (rock: Rock) => {
-      s.rocks = s.rocks.filter((r) => r !== rock);
-      s.score += ROCK[rock.size].points;
-      const next = ROCK[rock.size].next;
-      if (next) s.rocks.push(makeRock(rock.x, rock.y, next), makeRock(rock.x, rock.y, next));
+    const explode = (x: number, y: number, count: number, color: string) => {
+      for (let i = 0; i < count; i++) {
+        const dir = rand(0, Math.PI * 2);
+        const speed = rand(24, 104);
+        const life = rand(0.4, 1.1);
+        s.particles.push({
+          x,
+          y,
+          vx: Math.cos(dir) * speed,
+          vy: Math.sin(dir) * speed,
+          life,
+          ttl: life,
+          color,
+        });
+      }
+    };
+    /** Máximo uno por nivel: 15 % por roca destruida o seguro en la 5.ª. */
+    const maybeSpawnPowerUp = (x: number, y: number) => {
+      if (s.powerUpSpawned) return;
+      s.killsSinceSpawn++;
+      if (
+        s.killsSinceSpawn < POWERUP_GUARANTEED_KILLS &&
+        Math.random() >= POWERUP_DROP_CHANCE
+      )
+        return;
+      const dir = rand(0, Math.PI * 2);
+      const speed = rand(16, 32);
+      s.powerUps.push({
+        x,
+        y,
+        vx: Math.cos(dir) * speed,
+        vy: Math.sin(dir) * speed,
+        ttl: POWERUP_TTL,
+      });
+      s.powerUpSpawned = true;
+    };
+    /** Centro, mirando hacia arriba, parada y con invulnerabilidad. El disparo triple se conserva. */
+    const resetShip = () => {
+      Object.assign(s.ship, {
+        x: W / 2,
+        y: H / 2,
+        vx: 0,
+        vy: 0,
+        angle: -Math.PI / 2,
+        invincible: INVINCIBLE_TIME,
+        cooldown: 0,
+        thrusting: false,
+      });
+    };
+    const nextLevel = () => {
+      s.level++;
+      s.bullets = [];
+      s.particles = [];
+      s.powerUps = [];
+      s.powerUpSpawned = false;
+      s.killsSinceSpawn = 0;
+      resetShip();
+      spawnRocks(3 + s.level);
       emitHud();
     };
-
-    const loseLife = () => {
+    const killShip = () => {
+      explode(s.ship.x, s.ship.y, SHIP_PARTICLES, COLORS.yellow);
       s.lives--;
       emitHud();
       if (s.lives <= 0) {
-        over = true;
+        s.phase = "over";
         ctx.onGameOver(s.score);
-        return;
+      } else {
+        s.phase = "dead";
+        s.deadTimer = DEAD_TIME;
       }
-      Object.assign(s.ship, { x: W / 2, y: H / 2, vx: 0, vy: 0, angle: -Math.PI / 2, invulnMs: INVULN_MS });
     };
-
-    startLevel();
+    const tryShoot = () => {
+      const ship = s.ship;
+      if (ship.cooldown > 0) return;
+      ship.cooldown = SHOOT_COOLDOWN;
+      const ox = ship.x + Math.cos(ship.angle) * NOSE;
+      const oy = ship.y + Math.sin(ship.angle) * NOSE;
+      const angles =
+        ship.tripleShot > 0
+          ? [ship.angle - TRIPLE_SPREAD, ship.angle, ship.angle + TRIPLE_SPREAD]
+          : [ship.angle];
+      for (const a of angles)
+        s.bullets.push({
+          x: ox,
+          y: oy,
+          vx: ship.vx + Math.cos(a) * BULLET_SPEED,
+          vy: ship.vy + Math.sin(a) * BULLET_SPEED,
+          ttl: BULLET_TTL,
+        });
+    };
+    const updateShip = (dt: number) => {
+      const ship = s.ship;
+      if (ship.invincible > 0) ship.invincible -= dt;
+      if (ship.cooldown > 0) ship.cooldown -= dt;
+      if (ship.tripleShot > 0)
+        ship.tripleShot = Math.max(0, ship.tripleShot - dt);
+      if (input.isDown("ArrowLeft") || input.isDown("KeyA"))
+        ship.angle -= ROTATE_SPEED * dt;
+      if (input.isDown("ArrowRight") || input.isDown("KeyD"))
+        ship.angle += ROTATE_SPEED * dt;
+      ship.thrusting = input.isDown("ArrowUp") || input.isDown("KeyW");
+      if (ship.thrusting) {
+        ship.vx += Math.cos(ship.angle) * THRUST * dt;
+        ship.vy += Math.sin(ship.angle) * THRUST * dt;
+      }
+      ship.vx *= DRAG;
+      ship.vy *= DRAG;
+      move(ship, dt);
+    };
+    spawnRocks(4);
     emitHud();
-
     return {
       update(dtMs) {
-        if (over) return;
+        if (s.phase === "over") return;
         const dt = dtMs / 1000;
-        const ship = s.ship;
-
-        // Nave: rotación, empuje, rozamiento y velocidad máxima
-        if (input.isDown("ArrowLeft") || input.isDown("KeyA")) ship.angle -= ROTATE_SPEED * dt;
-        if (input.isDown("ArrowRight") || input.isDown("KeyD")) ship.angle += ROTATE_SPEED * dt;
-        thrusting = input.isDown("ArrowUp") || input.isDown("KeyW");
-        if (thrusting) {
-          ship.vx += Math.cos(ship.angle) * THRUST * dt;
-          ship.vy += Math.sin(ship.angle) * THRUST * dt;
+        if (s.phase === "dead") {
+          // La nave no se ve ni se controla; el resto del mundo sigue moviéndose
+          s.deadTimer -= dt;
+          if (s.deadTimer <= 0) {
+            s.phase = "playing";
+            resetShip();
+          }
+        } else {
+          if (input.wasPressed("Space")) tryShoot();
+          updateShip(dt);
         }
-        const drag = Math.max(0, 1 - FRICTION * dt);
-        ship.vx *= drag;
-        ship.vy *= drag;
-        const speed = Math.hypot(ship.vx, ship.vy);
-        if (speed > MAX_SPEED) {
-          ship.vx *= MAX_SPEED / speed;
-          ship.vy *= MAX_SPEED / speed;
+        for (const b of s.bullets) {
+          move(b, dt);
+          b.ttl -= dt;
         }
-        ship.x += ship.vx * dt;
-        ship.y += ship.vy * dt;
-        wrap(ship);
-        if (ship.invulnMs > 0) ship.invulnMs -= dtMs;
-
-        if (input.wasPressed("Space") && s.shots.length < MAX_SHOTS) {
-          const nose = { x: ship.x + Math.cos(ship.angle) * SHIP_R, y: ship.y + Math.sin(ship.angle) * SHIP_R };
-          s.shots.push({
-            ...nose,
-            vx: ship.vx + Math.cos(ship.angle) * SHOT_SPEED,
-            vy: ship.vy + Math.sin(ship.angle) * SHOT_SPEED,
-            ttlMs: SHOT_TTL_MS,
-          });
+        s.bullets = s.bullets.filter((b) => b.ttl > 0);
+        for (const p of s.powerUps) {
+          move(p, dt);
+          p.ttl -= dt;
         }
-
-        for (const shot of s.shots) {
-          shot.x += shot.vx * dt;
-          shot.y += shot.vy * dt;
-          shot.ttlMs -= dtMs;
-          wrap(shot);
+        s.powerUps = s.powerUps.filter((p) => p.ttl > 0);
+        // Las partículas no envuelven
+        for (const p of s.particles) {
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.ttl -= dt;
         }
-        s.shots = s.shots.filter((shot) => shot.ttlMs > 0);
-
-        for (const rock of s.rocks) {
-          rock.x += rock.vx * dt;
-          rock.y += rock.vy * dt;
-          wrap(rock);
+        s.particles = s.particles.filter((p) => p.ttl > 0);
+        for (const r of s.rocks) {
+          move(r, dt);
+          r.rot += r.rotSpeed * dt;
         }
-
-        // Disparos contra rocas (círculo-círculo)
-        for (const shot of [...s.shots]) {
-          const rock = s.rocks.find((r) => Math.hypot(r.x - shot.x, r.y - shot.y) < ROCK[r.size].r);
-          if (!rock) continue;
-          s.shots = s.shots.filter((x) => x !== shot);
-          destroyRock(rock);
-        }
-
-        // Nave contra rocas
-        if (ship.invulnMs <= 0) {
-          const hit = s.rocks.find(
-            (r) => Math.hypot(r.x - ship.x, r.y - ship.y) < ROCK[r.size].r * 0.85 + SHIP_R,
-          );
-          if (hit) {
-            destroyRock(hit);
-            loseLife();
-            if (over) return;
+        // Bala contra roca: la roca se divide y la bala desaparece
+        const hitRocks = new Set<Rock>();
+        const hitBullets = new Set<Bullet>();
+        const newRocks: Rock[] = [];
+        for (const b of s.bullets) {
+          for (const r of s.rocks) {
+            if (hitRocks.has(r) || hitBullets.has(b)) continue;
+            if (Math.hypot(b.x - r.x, b.y - r.y) >= ROCK_RADIUS[r.size])
+              continue;
+            hitBullets.add(b);
+            hitRocks.add(r);
+            s.score += ROCK_POINTS[r.size];
+            explode(r.x, r.y, r.size * ROCK_PARTICLES_PER_SIZE, COLORS.cyan);
+            maybeSpawnPowerUp(r.x, r.y);
+            if (r.size > 1) {
+              const next = (r.size - 1) as RockSize;
+              newRocks.push(makeRock(r.x, r.y, next), makeRock(r.x, r.y, next));
+            }
           }
         }
-
-        if (s.rocks.length === 0) {
-          s.level++;
-          startLevel();
+        if (hitRocks.size > 0) {
+          s.rocks = s.rocks.filter((r) => !hitRocks.has(r)).concat(newRocks);
+          s.bullets = s.bullets.filter((b) => !hitBullets.has(b));
           emitHud();
         }
+        if (s.phase !== "playing") return;
+        const ship = s.ship;
+        // Nave contra power-up
+        const picked = s.powerUps.filter(
+          (p) =>
+            Math.hypot(ship.x - p.x, ship.y - p.y) <
+            SHIP_RADIUS + POWERUP_RADIUS,
+        );
+        if (picked.length > 0) {
+          ship.tripleShot = POWERUP_DURATION;
+          s.powerUps = s.powerUps.filter((p) => !picked.includes(p));
+        }
+        // Nave contra roca: la roca no se rompe ni suma puntos
+        if (
+          ship.invincible <= 0 &&
+          s.rocks.some(
+            (r) =>
+              Math.hypot(ship.x - r.x, ship.y - r.y) <
+              SHIP_RADIUS + ROCK_RADIUS[r.size] * SHIP_HIT_FACTOR,
+          )
+        ) {
+          killShip();
+          return;
+        }
+        if (s.rocks.length === 0) nextLevel();
       },
       render(g) {
         g.fillStyle = COLORS.bg;
         g.fillRect(0, 0, W, H);
         g.lineWidth = 2;
         g.lineJoin = "round";
-
+        // Partículas sin brillo: shadowBlur en muchas es costoso
+        g.shadowBlur = 0;
+        g.lineWidth = 1;
+        for (const p of s.particles) {
+          g.globalAlpha = p.ttl / p.life;
+          g.strokeStyle = p.color;
+          g.beginPath();
+          g.moveTo(p.x, p.y);
+          g.lineTo(p.x - p.vx * 0.05, p.y - p.vy * 0.05);
+          g.stroke();
+        }
+        g.globalAlpha = 1;
+        g.lineWidth = 2;
         // Dibuja en la posición y en sus copias envueltas para que el cruce de borde sea continuo
-        const drawWrapped = (x: number, y: number, r: number, draw: (x: number, y: number) => void) => {
+        const drawWrapped = (
+          x: number,
+          y: number,
+          r: number,
+          draw: (x: number, y: number) => void,
+        ) => {
           for (const dx of [-W, 0, W])
             for (const dy of [-H, 0, H]) {
               const px = x + dx;
               const py = y + dy;
-              if (px + r < 0 || px - r > W || py + r < 0 || py - r > H) continue;
+              if (px + r < 0 || px - r > W || py + r < 0 || py - r > H)
+                continue;
               draw(px, py);
             }
         };
-
         g.strokeStyle = COLORS.cyan;
-        g.shadowBlur = 8;
         g.shadowColor = COLORS.cyan;
+        g.shadowBlur = 8;
         for (const rock of s.rocks) {
-          const r = ROCK[rock.size].r;
-          drawWrapped(rock.x, rock.y, r * 1.2, (x, y) => {
+          drawWrapped(rock.x, rock.y, ROCK_RADIUS[rock.size], (x, y) => {
+            g.save();
+            g.translate(x, y);
+            g.rotate(rock.rot);
             g.beginPath();
-            rock.shape.forEach((k, i) => {
-              const a = (i / rock.shape.length) * Math.PI * 2;
-              const px = x + Math.cos(a) * r * k;
-              const py = y + Math.sin(a) * r * k;
-              if (i === 0) g.moveTo(px, py);
-              else g.lineTo(px, py);
-            });
+            g.moveTo(rock.verts[0][0], rock.verts[0][1]);
+            for (let i = 1; i < rock.verts.length; i++)
+              g.lineTo(rock.verts[i][0], rock.verts[i][1]);
             g.closePath();
             g.stroke();
+            g.restore();
           });
         }
-
         g.fillStyle = COLORS.ink;
         g.shadowColor = COLORS.ink;
-        for (const shot of s.shots) g.fillRect(shot.x - 1.5, shot.y - 1.5, 3, 3);
-
-        const ship = s.ship;
-        const visible = ship.invulnMs <= 0 || Math.floor(ship.invulnMs / 120) % 2 === 0;
-        if (visible && !over) {
-          g.strokeStyle = COLORS.yellow;
-          g.shadowColor = COLORS.yellow;
-          drawWrapped(ship.x, ship.y, SHIP_R * 2, (x, y) => {
-            const pt = (angle: number, r: number) => [x + Math.cos(ship.angle + angle) * r, y + Math.sin(ship.angle + angle) * r] as const;
+        for (const b of s.bullets) {
+          drawWrapped(b.x, b.y, BULLET_RADIUS, (x, y) => {
             g.beginPath();
-            g.moveTo(...pt(0, SHIP_R * 1.4));
-            g.lineTo(...pt(2.5, SHIP_R));
-            g.lineTo(...pt(Math.PI, SHIP_R * 0.4));
-            g.lineTo(...pt(-2.5, SHIP_R));
-            g.closePath();
-            g.stroke();
-            if (thrusting && Math.random() < 0.7) {
-              g.strokeStyle = COLORS.magenta;
-              g.beginPath();
-              g.moveTo(...pt(2.8, SHIP_R * 0.7));
-              g.lineTo(...pt(Math.PI, SHIP_R * 1.5));
-              g.lineTo(...pt(-2.8, SHIP_R * 0.7));
-              g.stroke();
-              g.strokeStyle = COLORS.yellow;
-            }
+            g.arc(x, y, BULLET_RADIUS, 0, Math.PI * 2);
+            g.fill();
           });
         }
+        // Power-up: cuadrado rotado 45° que pulsa, con "3x"; parpadea al final
+        const pulse = 0.85 + Math.sin(performance.now() / 150) * 0.15;
+        g.strokeStyle = COLORS.magenta;
+        g.fillStyle = COLORS.magenta;
+        g.shadowColor = COLORS.magenta;
+        for (const p of s.powerUps) {
+          if (p.ttl < POWERUP_BLINK && Math.floor(p.ttl * 8) % 2 === 0)
+            continue;
+          drawWrapped(p.x, p.y, POWERUP_RADIUS * 1.5, (x, y) => {
+            const r = POWERUP_RADIUS * pulse;
+            g.save();
+            g.translate(x, y);
+            g.rotate(Math.PI / 4);
+            g.strokeRect(-r, -r, r * 2, r * 2);
+            g.restore();
+            g.font = "bold 10px monospace";
+            g.textAlign = "center";
+            g.textBaseline = "middle";
+            g.fillText("3x", x, y);
+          });
+        }
+        const ship = s.ship;
+        // Parpadeo durante la invulnerabilidad de reaparición
+        const blinkOff =
+          ship.invincible > 0 && Math.floor(ship.invincible * 8) % 2 === 0;
+        if (s.phase === "playing" && !blinkOff)
+          drawWrapped(ship.x, ship.y, NOSE, (x, y) => {
+            g.save();
+            g.translate(x, y);
+            g.rotate(ship.angle);
+            // Silueta clásica: triángulo con muesca trasera
+            g.strokeStyle = COLORS.yellow;
+            g.shadowColor = COLORS.yellow;
+            g.beginPath();
+            g.moveTo(16, 0);
+            g.lineTo(-9.6, -7.2);
+            g.lineTo(-5.6, 0);
+            g.lineTo(-9.6, 7.2);
+            g.closePath();
+            g.stroke();
+            // Llama del propulsor
+            if (ship.thrusting && Math.random() > 0.35) {
+              g.strokeStyle = COLORS.magenta;
+              g.shadowColor = COLORS.magenta;
+              g.beginPath();
+              g.moveTo(-6.4, -3.2);
+              g.lineTo(-6.4 - rand(5, 11), 0);
+              g.lineTo(-6.4, 3.2);
+              g.stroke();
+            }
+            g.restore();
+          });
         g.shadowBlur = 0;
+        if (ship.tripleShot > 0)
+          drawText(g, `3x  ${ship.tripleShot.toFixed(1)}s`, 12, 24, {
+            color: COLORS.magenta,
+          });
       },
     };
   },
