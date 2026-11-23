@@ -100,6 +100,8 @@ interface RocksState {
 
 ### Rocas
 
+> **Nota:** la implementación de Rocas descrita aquí la sustituye la [SPEC 08](08-rocas-port-asteroides.md) (port del juego de asteroides de referencia).
+
 - Controles: ←/→ o A/D rotan; ↑ o W empuja; `Space` dispara.
 - Inercia con rozamiento leve; velocidad máxima de la nave 300 px/s.
 - Todos los objetos aparecen por el borde opuesto al salir de la pantalla.

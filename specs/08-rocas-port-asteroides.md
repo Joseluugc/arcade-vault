@@ -1,6 +1,6 @@
 # SPEC 08 — Rocas: port del juego de asteroides de referencia
 
-> **Estado:** Aprobado
+> **Estado:** Aprobado 
 > **Depende de:** SPEC 01, SPEC 03
 > **Fecha:** 2026-11-23
 > **Objetivo:** Sustituir la implementación de Rocas por un port del juego de `references/started-games/02-asteroids/` al motor de la plataforma, con power-up de disparo triple y partículas.
