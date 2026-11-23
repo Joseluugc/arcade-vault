@@ -10,8 +10,10 @@ Arcade Vault: plataforma para jugar online y competir por la mayor cantidad de p
 
 - Next.js 16.4.6, React 19.3, Tailwind 4 (`@tailwindcss/turbopack`), TypeScript. App Router en `app/`; el alias `@/*` apunta a la raíz del repositorio.
 - `AGENTS.md` advierte que esta versión de Next.js tiene cambios incompatibles respecto a lo conocido previamente. Antes de escribir código de Next.js, lee la guía relevante en `node_modules/next/dist/docs/`.
+- Supabase vía `@supabase/ssr` + `@supabase/supabase-js` (SPEC 07). Solo conexión: aún no hay tablas propias, ni auth, ni tipos generados. Se usa la clave publicable; nunca la secreta / `service_role`.
 - Comandos: `npm run dev`, `npm run build`, `npm run lint`. No hay tests; la verificación mínima es `npx tsc --noEmit` + `npm run lint` + `npm run build`.
 - Variables de entorno en `.env.local` (ignorado por git; nunca escribas sus valores en el repositorio): `RESEND_API_KEY`, `CONTACT_TO_EMAIL` (destinatario; sin dominio verificado en Resend debe ser el correo de la cuenta) y `CONTACT_FROM_EMAIL` (p. ej. `Arcade Vault <onboarding@resend.dev>`). Sin ellas, el formulario de contacto muestra un error y el servidor registra cuál falta.
+- Supabase en `.env.local`: `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (`sb_publishable_…`), documentadas en `.env.example`. Se obtienen en Project Settings → API o con el MCP (`get_project_url`, `get_publishable_keys`). Si falta alguna, los clientes lanzan un error que la nombra y, como el proxy corre en cada petición, falla toda la app.
 
 ## Arquitectura
 
@@ -21,6 +23,8 @@ Arcade Vault: plataforma para jugar online y competir por la mayor cantidad de p
 - `app/Nav.tsx`: barra global con Inicio, Biblioteca, Salón de la Fama (ancla `/#salon` hasta que exista `/salon`) y Acerca de. Créditos fijos (`GUEST_CREDITS`) y "Iniciar Sesión" hacia `/auth`, que aún no existe.
 - `app/jugar/[id]/`: reproductor (`GamePlayer.tsx`), con HUD, pausa (P) y fin de partida. Devuelve 404 si el id no está en el registro.
 - `app/globals.css`: tema completo portado de `references/templates/styles.css` y de `references/templates/home-about/styles.css` (tokens de color, `.btn`, `.card`, portadas CSS `.cover-*`, nav, etc.). Reutiliza estas clases antes de crear estilos nuevos.
+- `lib/supabase/`: `server.ts` (`createClient()` async para componentes servidor, Server Actions y Route Handlers; crear uno por petición), `client.ts` (`createClient()` para componentes cliente), `proxy.ts` (`updateSession`) y `env.ts` (lee y valida las variables con acceso estático a `process.env`). Ninguna página los usa todavía.
+- `proxy.ts` (raíz): convención de Next 16 que sustituye a `middleware.ts`. Llama a `updateSession`, que refresca la sesión de Supabase en cookies con `auth.getClaims()` y nunca redirige. El `matcher` excluye `_next/static`, `_next/image`, `favicon.ico` e imágenes.
 - `games/catalog.ts`: metadatos de los 8 juegos (`GameMeta`: título, textos, categoría, `cover`, color) y `GAME_CATEGORIES`. Es la fuente de datos de la UI.
 - `games/registry.ts`: `GAME_REGISTRY`, juegos realmente jugables. Un juego en el catálogo pero no en el registro se muestra pero no se puede jugar.
 - `games/engine/`: motor en canvas (`GameCanvas`, bucle a 60 FPS en `loop.ts`, `input.ts`, `palette.ts`). Cada juego exporta un `GameDefinition` (`id` + `create(ctx)` que devuelve `update`/`render`).
