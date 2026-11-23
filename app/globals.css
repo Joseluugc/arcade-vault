@@ -945,6 +945,31 @@ a { color: inherit; text-decoration: none; }
   color: var(--yellow); letter-spacing: 0.16em; background: rgba(245,255,0,0.04);
   border-bottom: 1px solid var(--line-2);
 }
+/* podio parcial: cada puesto conserva su columna (plata, oro, bronce) */
+@media (min-width: 721px) {
+  .podium-slot.silver { grid-column: 1; }
+  .podium-slot.gold { grid-column: 2; }
+  .podium-slot.bronze { grid-column: 3; }
+}
+.chip { text-decoration: none; }
+.chip:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+.hall-msg {
+  text-align: center; margin: 32px 0;
+  font-family: var(--pixel); font-size: 10px; color: var(--ink-faint); letter-spacing: 0.16em;
+}
+.hall-error { max-width: 640px; margin: 8px auto 0; text-align: center; border-left: 0; border-top: 2px solid var(--magenta); }
+.hall-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  padding: 48px 18px;
+  border: 1px dashed var(--line);
+  background: var(--bg-2);
+  text-align: center;
+}
+.hall-empty p { margin: 0; font-size: 13px; color: var(--ink-dim); letter-spacing: 0.12em; }
+@media (prefers-reduced-motion: reduce) {
+  .hall-table .tr { opacity: 1; animation: none; }
+  .toast-saved { width: 22ch; animation: none; }
+}
 @keyframes rise {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }

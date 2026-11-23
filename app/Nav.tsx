@@ -13,14 +13,14 @@ type Section = "inicio" | "biblioteca" | "salon" | "acerca" | "auth";
 const LINKS: { section: Section; href: string; label: string }[] = [
   { section: "inicio", href: "/", label: "Inicio" },
   { section: "biblioteca", href: "/biblioteca", label: "Biblioteca" },
-  // Ancla a la sección Actividad de la home mientras no exista /salon.
-  { section: "salon", href: "/#salon", label: "Salón de la Fama" },
+  { section: "salon", href: "/salon", label: "Salón de la Fama" },
   { section: "acerca", href: "/acerca", label: "Acerca de" },
 ];
 
 function sectionOf(pathname: string): Section | null {
   if (pathname === "/") return "inicio";
   if (pathname.startsWith("/biblioteca") || pathname.startsWith("/jugar/")) return "biblioteca";
+  if (pathname.startsWith("/salon")) return "salon";
   if (pathname.startsWith("/acerca")) return "acerca";
   if (pathname.startsWith("/auth")) return "auth";
   return null;
